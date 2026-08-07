@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { X, Save, Trash2, Calendar, ExternalLink, MessageSquare, AlertTriangle, ShieldAlert, Lightbulb, HeartHandshake } from 'lucide-react';
+import { X, Save, Calendar, ExternalLink, MessageSquare, AlertTriangle, ShieldAlert, Lightbulb, HeartHandshake, Paperclip } from 'lucide-react';
 import { Report, ReportStatus } from '../types';
 
 interface ReportDetailModalProps {
   report: Report;
   onClose: () => void;
   onUpdateStatus: (folio: string, newStatus: ReportStatus, responseText?: string) => Promise<void>;
-  onDeleteReport: (folio: string) => Promise<void>;
 }
 
 const ALL_STATUSES: ReportStatus[] = ['Pendiente', 'En Revisión', 'En Proceso', 'Resuelto', 'Archivado'];
@@ -15,12 +14,10 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   report,
   onClose,
   onUpdateStatus,
-  onDeleteReport,
 }) => {
   const [estado, setEstado] = useState<ReportStatus>(report.estado);
   const [respuestaAdmin, setRespuestaAdmin] = useState<string>(report.respuesta_admin || '');
   const [saving, setSaving] = useState<boolean>(false);
-  const [deleting, setDeleting] = useState<boolean>(false);
 
   const handleSave = async () => {
     setSaving(true);
@@ -31,20 +28,6 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
       console.error(err);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (window.confirm(`¿Estás seguro de que deseas eliminar permanentemente el reporte ${report.folio}?`)) {
-      setDeleting(true);
-      try {
-        await onDeleteReport(report.folio);
-        onClose();
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setDeleting(false);
-      }
     }
   };
 
@@ -105,17 +88,20 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Adjunto si aplica */}
-          {report.adjunto && (
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
-              <span className="text-slate-500 font-medium">Archivo o Evidencia Adjunta:</span>
+          {/* Adjunto / Evidencia si existe */}
+          {report.adjunto && report.adjunto.trim() !== '' && (
+            <div className="bg-indigo-50/80 p-4 rounded-2xl border border-indigo-200 flex items-center justify-between text-xs">
+              <div className="flex items-center space-x-2.5 text-indigo-950 font-bold">
+                <Paperclip className="w-4 h-4 text-indigo-600" />
+                <span>Documento / Evidencia Adjunta</span>
+              </div>
               <a
                 href={report.adjunto}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-indigo-600 hover:underline font-bold flex items-center space-x-1"
+                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center space-x-1.5 shadow-xs transition"
               >
-                <span>Abrir Evidencia</span>
+                <span>Abrir / Descargar Evidencia</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>
@@ -163,14 +149,9 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50">
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold border border-rose-200 transition flex items-center space-x-2"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>{deleting ? 'Eliminando...' : 'Eliminar Caso'}</span>
-          </button>
+          <span className="text-xs text-slate-500 font-medium italic">
+            🔒 Registro inmutable y auditables. No se permite la eliminación de reportes.
+          </span>
 
           <div className="flex items-center space-x-3">
             <button

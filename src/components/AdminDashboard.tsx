@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Download, RefreshCw, LogOut, Search, Eye } from 'lucide-react';
 import { Report, ReportStatus, UrgencyLevel } from '../types';
-import { getAllReports, updateReportStatus, deleteReport } from '../services/storageService';
+import { getAllReports, updateReportStatus } from '../services/storageService';
 import { StatsOverview } from './StatsOverview';
 import { ReportDetailModal } from './ReportDetailModal';
 
@@ -43,11 +43,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     await fetchReports();
   };
 
-  const handleDeleteReport = async (folio: string) => {
-    await deleteReport(folio);
-    await fetchReports();
-  };
-
   // Filtrado dinámico
   const filteredReports = reports.filter((r) => {
     const matchesSearch =
@@ -66,7 +61,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const handleExportCSV = () => {
     if (filteredReports.length === 0) return;
 
-    const headers = ['Folio', 'Tipo', 'Categoria', 'Urgencia', 'Asunto', 'Estado', 'Fecha Creacion', 'Respuesta Admin'];
+    const headers = ['Folio', 'Tipo', 'Categoria', 'Urgencia', 'Asunto', 'Estado', 'Fecha Creacion', 'Adjunto', 'Respuesta Admin'];
     const rows = filteredReports.map((r) => [
       `"${r.folio}"`,
       `"${r.tipo}"`,
@@ -75,6 +70,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       `"${r.asunto.replace(/"/g, '""')}"`,
       `"${r.estado}"`,
       `"${new Date(r.fecha_creacion).toLocaleString('es-MX')}"`,
+      `"${r.adjunto || ''}"`,
       `"${(r.respuesta_admin || '').replace(/"/g, '""')}"`
     ]);
 
@@ -266,7 +262,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
                     <td className="py-4 px-5 max-w-xs">
                       <p className="font-bold text-slate-900 truncate">{r.asunto}</p>
-                      <span className="text-[11px] text-slate-500 font-medium">{r.categoria}</span>
+                      <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
+                        <span>{r.categoria}</span>
+                        {r.adjunto && r.adjunto.trim() !== '' && (
+                          <span className="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-1.5 py-0.2 rounded-md">
+                            📎 Adjunto
+                          </span>
+                        )}
+                      </span>
                     </td>
 
                     <td className="py-4 px-5 text-slate-500 text-[11px] whitespace-nowrap font-medium">
@@ -303,7 +306,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           report={selectedReport}
           onClose={() => setSelectedReport(null)}
           onUpdateStatus={handleUpdateStatus}
-          onDeleteReport={handleDeleteReport}
         />
       )}
 

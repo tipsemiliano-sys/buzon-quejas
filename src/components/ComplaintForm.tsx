@@ -134,6 +134,25 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
     setLoading(true);
 
     try {
+      let finalAdjuntoUrl = adjuntoUrl.trim();
+
+      // Garantizar que si se seleccionó un archivo pero aún no se subió, se suba antes de enviar
+      if (attachedFile && !finalAdjuntoUrl) {
+        setUploadingFile(true);
+        try {
+          finalAdjuntoUrl = await uploadAnonymousFile(attachedFile);
+          setAdjuntoUrl(finalAdjuntoUrl);
+        } catch (err: any) {
+          console.error('Error al subir evidencia:', err);
+          alert(`⚠️ No se pudo subir el archivo adjunto a Supabase Storage: ${err?.message || String(err)}`);
+          setLoading(false);
+          setUploadingFile(false);
+          return;
+        } finally {
+          setUploadingFile(false);
+        }
+      }
+
       let inputData: NewReportInput;
 
       if (tipoRegistro === 'queja') {
@@ -154,7 +173,7 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
           urgencia: urgencyLevel,
           asunto: `Queja: ${quejaCategoria.slice(0, 60)}`,
           descripcion: fullDesc,
-          adjunto: adjuntoUrl.trim() || undefined,
+          adjunto: finalAdjuntoUrl || undefined,
         };
       } else {
         let fullDesc = `Aspecto a Mejorar: ${sugerenciaAspecto}\n\n`;
@@ -170,7 +189,7 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
           urgencia: 'media',
           asunto: `Sugerencia: ${sugerenciaAspecto.slice(0, 60)}`,
           descripcion: fullDesc,
-          adjunto: adjuntoUrl.trim() || undefined,
+          adjunto: finalAdjuntoUrl || undefined,
         };
       }
 

@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS reportes (
     fecha_actualizacion TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Asegurar columna 'adjunto' si la tabla ya existía previamente
+ALTER TABLE reportes ADD COLUMN IF NOT EXISTS adjunto TEXT;
+
 -- 2. Índices para optimizar búsquedas por Folio y Estado
 CREATE INDEX IF NOT EXISTS idx_reportes_folio ON reportes(folio);
 CREATE INDEX IF NOT EXISTS idx_reportes_estado ON reportes(estado);
@@ -34,8 +37,8 @@ CREATE POLICY "Permitir insercion anonima" ON reportes
 CREATE POLICY "Permitir lectura publica" ON reportes
     FOR SELECT USING (true);
 
--- Política 3: Permitir actualización y eliminación
-CREATE POLICY "Permitir edicion y borrado" ON reportes
+-- Política 3: Permitir actualización
+CREATE POLICY "Permitir edicion" ON reportes
     FOR ALL USING (true);
 
 -- ======================================================
