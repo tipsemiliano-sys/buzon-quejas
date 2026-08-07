@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldCheck, Send, Search, Lock, Github, Database } from 'lucide-react';
+import { isSupabaseConfigured } from '../config/supabase';
 import { isNeonConfigured } from '../config/neon';
 
 interface HeaderProps {
@@ -15,6 +16,9 @@ export const Header: React.FC<HeaderProps> = ({
   isAdminLoggedIn,
   onOpenHelpModal,
 }) => {
+  const isConnected = isSupabaseConfigured || isNeonConfigured;
+  const statusLabel = isSupabaseConfigured ? 'Supabase Active' : isNeonConfigured ? 'Neon Active' : 'Demo Local';
+
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -88,7 +92,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onOpenHelpModal}
               className="flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition shadow-xs"
-              title="Guía de despliegue en GitHub y Neon DB"
+              title="Guía de despliegue en GitHub y Supabase"
             >
               <Github className="w-4 h-4 text-indigo-600" />
               <span className="hidden sm:inline">Guía GitHub / DB</span>
@@ -97,14 +101,14 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Indicator of Database Status */}
             <div 
               className={`hidden lg:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border ${
-                isNeonConfigured 
-                  ? 'bg-cyan-50 text-cyan-700 border-cyan-200' 
+                isConnected 
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                   : 'bg-amber-50 text-amber-700 border-amber-200'
               }`}
-              title={isNeonConfigured ? 'Conectado a Neon PostgreSQL' : 'Modo Demostración Local (Sin Neon)'}
+              title={isConnected ? `Conectado a ${statusLabel}` : 'Modo Demostración Local'}
             >
               <Database className="w-3.5 h-3.5" />
-              <span>{isNeonConfigured ? 'Neon Active' : 'Demo Local'}</span>
+              <span>{statusLabel}</span>
             </div>
           </div>
 

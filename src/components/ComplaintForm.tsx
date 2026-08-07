@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { Send, ShieldAlert, CheckCircle2, Copy, AlertTriangle, Lightbulb, Lock, Info, Building2, HelpCircle } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Send, ShieldAlert, CheckCircle2, Copy, AlertTriangle, Lightbulb, Lock, Info, Building2, HelpCircle, UploadCloud, FileText, X, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { NewReportInput, Report, ReportType, UrgencyLevel } from '../types';
-import { createReport } from '../services/storageService';
+import { NewReportInput, Report, UrgencyLevel } from '../types';
+import { createReport, uploadAnonymousFile } from '../services/storageService';
 import { sendAdminNotificationEmail } from '../services/emailService';
 
 interface ComplaintFormProps {
@@ -79,8 +79,12 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
   const [sugerenciaBeneficios, setSugerenciaBeneficios] = useState<string>('');
   const [sugerenciaRecursos, setSugerenciaRecursos] = useState<string>('');
 
-  // Opcional adjunto
+  // Almacenamiento de archivos adjuntos
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [uploadingFile, setUploadingFile] = useState<boolean>(false);
   const [adjuntoUrl, setAdjuntoUrl] = useState<string>('');
+  const [showUrlInput, setShowUrlInput] = useState<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Estados auxiliares
   const [touched, setTouched] = useState<boolean>(false);
@@ -93,6 +97,33 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
   const isQuejaValid = quejaCategoria.trim() !== '' && quejaDescripcion.trim() !== '' && quejaUrgencia.trim() !== '';
   const isSugerenciaValid = sugerenciaAspecto.trim() !== '' && sugerenciaPropuesta.trim() !== '' && sugerenciaBeneficios.trim() !== '';
   const isFormValid = tipoRegistro === 'queja' ? isQuejaValid : isSugerenciaValid;
+
+  // Manejo de archivo seleccionado
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.size > 10 * 1024 * 1024) {
+        alert('El archivo seleccionado supera el límite de 10 MB. Por favor elige uno más pequeño.');
+        return;
+      }
+      setAttachedFile(file);
+      setUploadingFile(true);
+      try {
+        const uploadedUrl = await uploadAnonymousFile(file);
+        setAdjuntoUrl(uploadedUrl);
+      } catch (err) {
+        console.error('Error al subir archivo:', err);
+      } finally {
+        setUploadingFile(false);
+      }
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setAttachedFile(null);
+    setAdjuntoUrl('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,7 +174,7 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
         };
       }
 
-      // 1. Guardar reporte en Neon o LocalStorage
+      // 1. Guardar reporte en Supabase, Neon o LocalStorage
       const created = await createReport(inputData);
 
       // 2. Enviar correo de notificación al administrador
@@ -236,6 +267,7 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
                 setSugerenciaPropuesta('');
                 setSugerenciaBeneficios('');
                 setSugerenciaRecursos('');
+                setAttachedFile(null);
                 setAdjuntoUrl('');
                 setTouched(false);
               }}
@@ -574,19 +606,100 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
           </div>
         )}
 
-        {/* Enlace o Evidencia Opcional */}
-        <div className="pt-4 border-t border-slate-200">
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-            Enlace o Evidencia de Soporte <span className="text-slate-400 font-normal">(Opcional)</span>
-          </label>
-          <input
-            type="url"
-            value={adjuntoUrl}
-            onChange={(e) => setAdjuntoUrl(e.target.value)}
-            placeholder="Ejemplo: https://drive.google.com/file/... o enlace a imagen de evidencia"
-            className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 transition"
-          />
-          <p className="text-[11px] text-slate-500 mt-1">Puedes incluir un enlace a Google Drive, OneDrive o servicios de imágenes para sustentar tu envío.</p>
+        {/* ====================================================== */}
+        {/* SUBIDA DE ARCHIVOS ANÓNIMOS / EVIDENCIA */}
+        {/* ====================================================== */}
+        <div className="pt-4 border-t border-slate-200 space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center space-x-1.5">
+              <UploadCloud className="w-4 h-4 text-indigo-600" />
+              <span>Adjuntar Documento o Evidencia <span className="text-slate-400 font-normal">(Opcional)</span></span>
+            </label>
+
+            <button
+              type="button"
+              onClick={() => setShowUrlInput(!showUrlInput)}
+              className="text-xs text-indigo-600 hover:underline flex items-center space-x-1 font-semibold"
+            >
+              <LinkIcon className="w-3.5 h-3.5" />
+              <span>{showUrlInput ? 'Subir archivo directamente' : 'Pegar enlace web'}</span>
+            </button>
+          </div>
+
+          {!showUrlInput ? (
+            <div>
+              {!attachedFile ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-300 hover:border-indigo-500 bg-slate-50 hover:bg-indigo-50/50 rounded-2xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center space-y-2 group"
+                >
+                  <div className="p-3 bg-white text-indigo-600 rounded-2xl shadow-xs group-hover:scale-110 transition">
+                    <UploadCloud className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">
+                      Haz clic para seleccionar o arrastra un archivo aquí
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Soporta documentos PDF, Word (.doc, .docx) e Imágenes (PNG, JPG) de hasta 10 MB.
+                    </p>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,.pdf,.doc,.docx"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </div>
+              ) : (
+                <div className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2.5 bg-indigo-600 text-white rounded-xl">
+                      {attachedFile.type.startsWith('image/') ? <ImageIcon className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 truncate max-w-xs">{attachedFile.name}</p>
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        {(attachedFile.size / (1024 * 1024)).toFixed(2)} MB {uploadingFile && '• Subiendo a Supabase Storage...'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    {uploadingFile ? (
+                      <span className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
+                    ) : (
+                      <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full flex items-center space-x-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Adjuntado</span>
+                      </span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleRemoveFile}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                      title="Quitar archivo"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              <input
+                type="url"
+                value={adjuntoUrl}
+                onChange={(e) => setAdjuntoUrl(e.target.value)}
+                placeholder="Ejemplo: https://drive.google.com/file/... o enlace de evidencia"
+                className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 transition"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">Puedes incluir un enlace a Google Drive, OneDrive o servicio de imágenes.</p>
+            </div>
+          )}
         </div>
 
         {/* Mensaje de validación general antes de enviar */}
@@ -601,9 +714,9 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
         <div className="pt-2">
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || uploadingFile}
             className={`w-full py-4 px-6 rounded-2xl text-white font-bold text-base shadow-lg transition flex items-center justify-center space-x-2 ${
-              loading
+              loading || uploadingFile
                 ? 'bg-slate-400 cursor-not-allowed'
                 : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/25 active:scale-[0.99]'
             }`}

@@ -1,4 +1,5 @@
 import { Report, NewReportInput, ReportStatus } from '../types';
+import { getSupabase, isSupabaseConfigured } from '../config/supabase';
 import { getNeonSql, isNeonConfigured } from '../config/neon';
 
 const LOCAL_STORAGE_KEY = 'buzon_quejas_reportes_v1';
@@ -14,16 +15,16 @@ export function generateFolio(): string {
   return `QS-${year}-${randomPart}`;
 }
 
-// Datos iniciales de demostración para LocalStorage cuando Neon aún no esté vinculado
+// Datos iniciales de demostración para LocalStorage
 const INITIAL_DEMO_REPORTS: Report[] = [
   {
     id: 1,
     folio: 'QS-2026-A8K91',
     tipo: 'queja',
-    categoria: 'Infraestructura y Equipos',
+    categoria: 'Infraestructura / Herramientas de trabajo',
     urgencia: 'alta',
-    asunto: 'Falla constante en la climatización del segundo piso',
-    descripcion: 'El sistema de aire acondicionado del área de desarrollo lleva 3 días goteando sobre los equipos y la temperatura supera los 28°C.',
+    asunto: 'Queja: Infraestructura / Herramientas de trabajo',
+    descripcion: 'Categoría de Incidencia: Infraestructura / Herramientas de trabajo\nÁrea / Departamento: Operaciones\nNivel de Urgencia / Impacto: Alto\n\nDescripción Detallada de los Hechos:\nEl sistema de aire acondicionado del área de producción lleva 3 días goteando sobre los equipos y la temperatura supera los 28°C.',
     adjunto: '',
     estado: 'En Proceso',
     respuesta_admin: 'El equipo de mantenimiento ya tiene el reporte y acudirá mañana a primera hora a reemplazar los filtros y sellar el ducto.',
@@ -34,33 +35,18 @@ const INITIAL_DEMO_REPORTS: Report[] = [
     id: 2,
     folio: 'QS-2026-M4P73',
     tipo: 'sugerencia',
-    categoria: 'Ambiente y Bienestar Laboral',
+    categoria: 'Ambiente y clima laboral',
     urgencia: 'media',
-    asunto: 'Implementar días de frutas o snacks saludables',
-    descripcion: 'Sugerimos habilitar una canasta de fruta fresca en el comedor dos veces por semana para incentivar hábitos más saludables en el equipo.',
+    asunto: 'Sugerencia: Ambiente y clima laboral',
+    descripcion: 'Aspecto a Mejorar: Ambiente y clima laboral\n\nDescripción de la Idea / Propuesta:\nSugerimos habilitar una canasta de fruta fresca en el comedor dos veces por semana para incentivar hábitos más saludables.\n\nBeneficios esperados para el equipo/empresa:\nMejora la energía y salud del equipo durante la jornada laboral.',
     adjunto: '',
     estado: 'Pendiente',
     respuesta_admin: '',
     fecha_creacion: new Date(Date.now() - 86400000 * 2).toISOString(),
     fecha_actualizacion: new Date(Date.now() - 86400000 * 2).toISOString(),
-  },
-  {
-    id: 3,
-    folio: 'QS-2026-Z9R15',
-    tipo: 'felicitacion',
-    categoria: 'Trato y Liderazgo',
-    urgencia: 'baja',
-    asunto: 'Reconocimiento a la capacitación de ciberseguridad',
-    descripcion: 'Excelente taller impartido esta semana. El instructor explicó de forma práctica cómo prevenir phishing sin tecnicismos complejos.',
-    adjunto: '',
-    estado: 'Resuelto',
-    respuesta_admin: '¡Muchas gracias por la retroalimentación positiva! Compartiremos las felicitaciones con el departamento de TI.',
-    fecha_creacion: new Date(Date.now() - 86400000 * 5).toISOString(),
-    fecha_actualizacion: new Date(Date.now() - 86400000 * 4).toISOString(),
   }
 ];
 
-// Auxiliar para obtener reportes de LocalStorage
 function getLocalReports(): Report[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -74,7 +60,6 @@ function getLocalReports(): Report[] {
   }
 }
 
-// Auxiliar para guardar reportes en LocalStorage
 function saveLocalReports(reports: Report[]): void {
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reports));
@@ -84,21 +69,77 @@ function saveLocalReports(reports: Report[]): void {
 }
 
 /**
- * Obtener todos los reportes (de Neon o LocalStorage)
+ * Subida anónima de archivos a Supabase Storage (Bucket: 'evidencias-quejas')
+ */
+export async function uploadAnonymousFile(file: File): Promise<string> {
+  const supabase = getSupabase();
+
+  if (supabase && isSupabaseConfigured) {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+      const filePath = `adjuntos/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from('evidencias-quejas')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        console.error('Error al subir archivo a Supabase Storage:', error);
+        throw error;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('evidencias-quejas')
+        .getPublicUrl(filePath);
+
+      return publicUrlData.publicUrl;
+    } catch (err) {
+      console.warn('Falló la subida a Supabase Storage, utilizando Data URL local:', err);
+    }
+  }
+
+  // Fallback Data URL cuando Supabase no esté vinculado
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Obtener todos los reportes (de Supabase, Neon o LocalStorage)
  */
 export async function getAllReports(): Promise<Report[]> {
+  const supabase = getSupabase();
+  if (supabase && isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('reportes')
+        .select('*')
+        .order('fecha_creacion', { ascending: false });
+
+      if (!error && data) {
+        return data as Report[];
+      }
+    } catch (error) {
+      console.warn('Error en Supabase, intentando fallback:', error);
+    }
+  }
+
   const sql = getNeonSql();
   if (sql && isNeonConfigured) {
     try {
-      const rows = await sql`
-        SELECT * FROM reportes ORDER BY fecha_creacion DESC
-      `;
+      const rows = await sql`SELECT * FROM reportes ORDER BY fecha_creacion DESC`;
       return rows as Report[];
     } catch (error) {
       console.warn('Fallback a LocalStorage debido a error en Neon SQL:', error);
-      return getLocalReports();
     }
   }
+
   return getLocalReports();
 }
 
@@ -107,19 +148,33 @@ export async function getAllReports(): Promise<Report[]> {
  */
 export async function getReportByFolio(folio: string): Promise<Report | null> {
   const cleanedFolio = folio.trim().toUpperCase();
-  const sql = getNeonSql();
 
+  const supabase = getSupabase();
+  if (supabase && isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('reportes')
+        .select('*')
+        .ilike('folio', cleanedFolio)
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        return data[0] as Report;
+      }
+    } catch (error) {
+      console.warn('Error en Supabase al buscar por folio:', error);
+    }
+  }
+
+  const sql = getNeonSql();
   if (sql && isNeonConfigured) {
     try {
-      const rows = await sql`
-        SELECT * FROM reportes WHERE UPPER(folio) = ${cleanedFolio} LIMIT 1
-      `;
+      const rows = await sql`SELECT * FROM reportes WHERE UPPER(folio) = ${cleanedFolio} LIMIT 1`;
       if (rows && rows.length > 0) {
         return rows[0] as Report;
       }
-      return null;
     } catch (error) {
-      console.warn('Error en Neon al buscar folio, intentando LocalStorage:', error);
+      console.warn('Error en Neon SQL:', error);
     }
   }
 
@@ -128,7 +183,7 @@ export async function getReportByFolio(folio: string): Promise<Report | null> {
 }
 
 /**
- * Crear un nuevo reporte anónimo
+ * Crear un nuevo reporte anónimo en Supabase, Neon o LocalStorage
  */
 export async function createReport(input: NewReportInput): Promise<Report> {
   const newFolio = generateFolio();
@@ -148,6 +203,22 @@ export async function createReport(input: NewReportInput): Promise<Report> {
     fecha_actualizacion: now,
   };
 
+  const supabase = getSupabase();
+  if (supabase && isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('reportes')
+        .insert([newReport])
+        .select();
+
+      if (!error && data && data.length > 0) {
+        return data[0] as Report;
+      }
+    } catch (error) {
+      console.warn('Error al insertar en Supabase, guardando localmente:', error);
+    }
+  }
+
   const sql = getNeonSql();
   if (sql && isNeonConfigured) {
     try {
@@ -160,11 +231,11 @@ export async function createReport(input: NewReportInput): Promise<Report> {
         return rows[0] as Report;
       }
     } catch (error) {
-      console.warn('Falló la inserción en Neon, guardando localmente:', error);
+      console.warn('Falló la inserción en Neon:', error);
     }
   }
 
-  // Guardar en LocalStorage si Neon no está activo
+  // Guardar en LocalStorage si no hay backend activo
   const localList = getLocalReports();
   newReport.id = Date.now();
   localList.unshift(newReport);
@@ -173,7 +244,7 @@ export async function createReport(input: NewReportInput): Promise<Report> {
 }
 
 /**
- * Actualizar el estado y respuesta del administrador para un reporte
+ * Actualizar el estado y respuesta del administrador
  */
 export async function updateReportStatus(
   folio: string, 
@@ -182,8 +253,29 @@ export async function updateReportStatus(
 ): Promise<Report | null> {
   const cleanedFolio = folio.trim().toUpperCase();
   const now = new Date().toISOString();
-  const sql = getNeonSql();
 
+  const supabase = getSupabase();
+  if (supabase && isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('reportes')
+        .update({
+          estado: nuevoEstado,
+          respuesta_admin: respuestaAdmin ?? '',
+          fecha_actualizacion: now
+        })
+        .ilike('folio', cleanedFolio)
+        .select();
+
+      if (!error && data && data.length > 0) {
+        return data[0] as Report;
+      }
+    } catch (error) {
+      console.warn('Error al actualizar en Supabase:', error);
+    }
+  }
+
+  const sql = getNeonSql();
   if (sql && isNeonConfigured) {
     try {
       const rows = await sql`
@@ -198,11 +290,11 @@ export async function updateReportStatus(
         return rows[0] as Report;
       }
     } catch (error) {
-      console.warn('Error al actualizar en Neon, intentando LocalStorage:', error);
+      console.warn('Error al actualizar en Neon:', error);
     }
   }
 
-  // Actualización en LocalStorage
+  // LocalStorage
   const localList = getLocalReports();
   const index = localList.findIndex(r => r.folio.toUpperCase() === cleanedFolio);
   if (index !== -1) {
@@ -219,18 +311,32 @@ export async function updateReportStatus(
 }
 
 /**
- * Eliminar un reporte (Sólo administrador)
+ * Eliminar un reporte
  */
 export async function deleteReport(folio: string): Promise<boolean> {
   const cleanedFolio = folio.trim().toUpperCase();
-  const sql = getNeonSql();
 
+  const supabase = getSupabase();
+  if (supabase && isSupabaseConfigured) {
+    try {
+      const { error } = await supabase
+        .from('reportes')
+        .delete()
+        .ilike('folio', cleanedFolio);
+
+      if (!error) return true;
+    } catch (error) {
+      console.warn('Error al eliminar en Supabase:', error);
+    }
+  }
+
+  const sql = getNeonSql();
   if (sql && isNeonConfigured) {
     try {
       await sql`DELETE FROM reportes WHERE UPPER(folio) = ${cleanedFolio}`;
       return true;
     } catch (error) {
-      console.warn('Error al eliminar en Neon, intentando en LocalStorage:', error);
+      console.warn('Error al eliminar en Neon:', error);
     }
   }
 
