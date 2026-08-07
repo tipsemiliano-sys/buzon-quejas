@@ -194,8 +194,9 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
 
       setSubmittedReport(created);
       onSuccessCreated(created.folio);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error al guardar reporte:', err);
+      alert(`⚠️ Error al guardar en Supabase: ${err?.message || String(err)}`);
     } finally {
       setLoading(false);
     }
