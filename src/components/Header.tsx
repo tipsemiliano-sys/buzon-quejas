@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Send, Search, Lock, Github, Database } from 'lucide-react';
+import { ShieldCheck, Send, Search, Lock, Database } from 'lucide-react';
 import { isSupabaseConfigured } from '../config/supabase';
 import { isNeonConfigured } from '../config/neon';
 
@@ -7,14 +7,12 @@ interface HeaderProps {
   activeTab: 'create' | 'lookup' | 'admin';
   setActiveTab: (tab: 'create' | 'lookup' | 'admin') => void;
   isAdminLoggedIn: boolean;
-  onOpenHelpModal: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
   isAdminLoggedIn,
-  onOpenHelpModal,
 }) => {
   const isConnected = isSupabaseConfigured || isNeonConfigured;
   const statusLabel = isSupabaseConfigured ? 'Supabase Active' : isNeonConfigured ? 'Neon Active' : 'Demo Local';
@@ -89,18 +87,9 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Action buttons */}
           <div className="flex items-center space-x-2">
-            <button
-              onClick={onOpenHelpModal}
-              className="flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition shadow-xs"
-              title="Guía de despliegue en GitHub y Supabase"
-            >
-              <Github className="w-4 h-4 text-indigo-600" />
-              <span className="hidden sm:inline">Guía GitHub / DB</span>
-            </button>
-
             {/* Indicator of Database Status */}
             <div 
-              className={`hidden lg:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border ${
                 isConnected 
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                   : 'bg-amber-50 text-amber-700 border-amber-200'

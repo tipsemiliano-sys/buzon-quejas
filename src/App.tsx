@@ -4,14 +4,12 @@ import { ComplaintForm } from './components/ComplaintForm';
 import { FolioLookup } from './components/FolioLookup';
 import { AdminLogin } from './components/AdminLogin';
 import { AdminDashboard } from './components/AdminDashboard';
-import { GitHubInstructionsModal } from './components/GitHubInstructionsModal';
-import { ShieldCheck, Heart, Github } from 'lucide-react';
+import { ShieldCheck, Database } from 'lucide-react';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<'create' | 'lookup' | 'admin'>('create');
   const [selectedLookupFolio, setSelectedLookupFolio] = useState<string>('');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(false);
-  const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
 
   useEffect(() => {
     const authSaved = localStorage.getItem('admin_authenticated');
@@ -47,7 +45,6 @@ export function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         isAdminLoggedIn={isAdminLoggedIn}
-        onOpenHelpModal={() => setShowHelpModal(true)}
       />
 
       {/* Contenido Principal */}
@@ -88,24 +85,12 @@ export function App() {
             <span className="font-medium">Sistema Anónimo de Quejas y Sugerencias Corporativas &copy; {new Date().getFullYear()}</span>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setShowHelpModal(true)}
-              className="text-slate-600 hover:text-indigo-600 transition flex items-center space-x-1 font-medium"
-            >
-              <Github className="w-3.5 h-3.5" />
-              <span>Desplegado en GitHub Pages</span>
-            </button>
-            <span className="text-slate-300">•</span>
-            <span className="text-slate-500 font-medium">Conectado a Neon DB</span>
+          <div className="flex items-center space-x-2">
+            <Database className="w-3.5 h-3.5 text-indigo-600" />
+            <span className="text-slate-600 font-medium">Conectado a Supabase Cloud</span>
           </div>
         </div>
       </footer>
-
-      {/* Modal de Ayuda y Despliegue en GitHub */}
-      {showHelpModal && (
-        <GitHubInstructionsModal onClose={() => setShowHelpModal(false)} />
-      )}
 
     </div>
   );
