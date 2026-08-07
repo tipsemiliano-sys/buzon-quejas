@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Download, RefreshCw, LogOut, Filter, Search, Eye, AlertTriangle, Lightbulb, HeartHandshake, ShieldAlert, CheckCircle2 } from 'lucide-react';
-import { Report, ReportStatus, ReportType, UrgencyLevel } from '../types';
+import { Download, RefreshCw, LogOut, Search, Eye } from 'lucide-react';
+import { Report, ReportStatus, UrgencyLevel } from '../types';
 import { getAllReports, updateReportStatus, deleteReport } from '../services/storageService';
 import { StatsOverview } from './StatsOverview';
 import { ReportDetailModal } from './ReportDetailModal';
@@ -90,10 +90,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const getUrgencyBadge = (urgencia: UrgencyLevel) => {
     const styles: Record<UrgencyLevel, string> = {
-      baja: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-      media: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-      alta: 'bg-orange-500/10 text-orange-400 border-orange-500/30',
-      critica: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+      baja: 'bg-blue-50 text-blue-700 border-blue-200',
+      media: 'bg-amber-50 text-amber-700 border-amber-200',
+      alta: 'bg-orange-50 text-orange-700 border-orange-200',
+      critica: 'bg-rose-50 text-rose-700 border-rose-200',
     };
     return (
       <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border uppercase tracking-wider ${styles[urgencia]}`}>
@@ -104,11 +104,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const getStatusBadge = (estado: ReportStatus) => {
     const styles: Record<ReportStatus, string> = {
-      'Pendiente': 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-      'En Revisión': 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-      'En Proceso': 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30',
-      'Resuelto': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-      'Archivado': 'bg-slate-500/10 text-slate-400 border-slate-500/30',
+      'Pendiente': 'bg-amber-50 text-amber-700 border-amber-200',
+      'En Revisión': 'bg-blue-50 text-blue-700 border-blue-200',
+      'En Proceso': 'bg-indigo-50 text-indigo-700 border-indigo-200',
+      'Resuelto': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      'Archivado': 'bg-slate-100 text-slate-600 border-slate-200',
     };
     return (
       <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${styles[estado]}`}>
@@ -121,16 +121,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     <div className="space-y-6 max-w-7xl mx-auto">
       
       {/* Header Panel */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 glass-panel p-6 rounded-3xl border border-indigo-500/20">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-md">
         <div>
-          <h2 className="text-2xl font-bold text-white">Panel de Gestión de Quejas y Sugerencias</h2>
-          <p className="text-xs text-slate-400 mt-1">Administra los casos, actualiza estados y responde a los colaboradores</p>
+          <h2 className="text-2xl font-bold text-slate-900">Panel de Gestión de Quejas y Sugerencias</h2>
+          <p className="text-xs text-slate-500 font-medium mt-1">Administra los casos, actualiza estados y responde a los colaboradores</p>
         </div>
 
         <div className="flex items-center space-x-2">
           <button
             onClick={fetchReports}
-            className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+            className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition"
             title="Recargar lista"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -138,15 +138,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
           <button
             onClick={handleExportCSV}
-            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition flex items-center space-x-2"
+            className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold border border-slate-200 transition flex items-center space-x-2"
           >
-            <Download className="w-4 h-4 text-indigo-400" />
+            <Download className="w-4 h-4 text-indigo-600" />
             <span>Exportar CSV</span>
           </button>
 
           <button
             onClick={onLogout}
-            className="px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-semibold border border-rose-500/30 transition flex items-center space-x-2"
+            className="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold border border-rose-200 transition flex items-center space-x-2"
           >
             <LogOut className="w-4 h-4" />
             <span>Cerrar Sesión</span>
@@ -158,7 +158,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       <StatsOverview reports={reports} />
 
       {/* Barra de Filtros y Búsqueda */}
-      <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           
           {/* Buscador */}
@@ -168,16 +168,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar por folio, asunto o categoría..."
-              className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-4 py-2.5 pl-10 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 pl-10 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 transition"
             />
-            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           </div>
 
           {/* Filtro por Tipo */}
           <select
             value={filterTipo}
             onChange={(e) => setFilterTipo(e.target.value)}
-            className="bg-slate-900/90 border border-slate-700/80 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 font-medium"
           >
             <option value="todos">Todos los Tipos</option>
             <option value="queja">Quejas</option>
@@ -190,7 +190,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           <select
             value={filterUrgencia}
             onChange={(e) => setFilterUrgencia(e.target.value)}
-            className="bg-slate-900/90 border border-slate-700/80 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 font-medium"
           >
             <option value="todos">Todas las Urgencias</option>
             <option value="baja">Baja</option>
@@ -203,7 +203,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           <select
             value={filterEstado}
             onChange={(e) => setFilterEstado(e.target.value)}
-            className="bg-slate-900/90 border border-slate-700/80 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 font-medium"
           >
             <option value="todos">Todos los Estados</option>
             <option value="Pendiente">Pendiente</option>
@@ -217,11 +217,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       </div>
 
       {/* Tabla Interactiva de Reportes */}
-      <div className="glass-panel rounded-3xl overflow-hidden border border-slate-800 shadow-xl">
+      <div className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-md">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-900/90 border-b border-slate-800 text-[11px] uppercase font-bold text-slate-400 tracking-wider">
+              <tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase font-bold text-slate-500 tracking-wider">
                 <th className="py-4 px-5">Folio</th>
                 <th className="py-4 px-5">Tipo</th>
                 <th className="py-4 px-5">Urgencia</th>
@@ -231,17 +231,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 <th className="py-4 px-5 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-xs">
+            <tbody className="divide-y divide-slate-100 text-xs">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
-                    <span className="inline-block w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2"></span>
-                    <p className="text-xs">Cargando registros desde Neon DB...</p>
+                  <td colSpan={7} className="py-12 text-center text-slate-500">
+                    <span className="inline-block w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mb-2"></span>
+                    <p className="text-xs font-medium">Cargando registros...</p>
                   </td>
                 </tr>
               ) : filteredReports.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-500">
                     No se encontraron reportes con los criterios seleccionados.
                   </td>
                 </tr>
@@ -250,13 +250,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                   <tr
                     key={r.folio}
                     onClick={() => setSelectedReport(r)}
-                    className="hover:bg-slate-800/40 transition cursor-pointer group"
+                    className="hover:bg-slate-50/80 transition cursor-pointer group"
                   >
-                    <td className="py-4 px-5 font-mono font-bold text-indigo-400 group-hover:text-indigo-300">
+                    <td className="py-4 px-5 font-mono font-bold text-indigo-600 group-hover:text-indigo-800">
                       {r.folio}
                     </td>
 
-                    <td className="py-4 px-5 uppercase font-semibold text-slate-300">
+                    <td className="py-4 px-5 uppercase font-bold text-slate-700">
                       {r.tipo}
                     </td>
 
@@ -265,11 +265,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                     </td>
 
                     <td className="py-4 px-5 max-w-xs">
-                      <p className="font-semibold text-slate-100 truncate">{r.asunto}</p>
-                      <span className="text-[11px] text-slate-400">{r.categoria}</span>
+                      <p className="font-bold text-slate-900 truncate">{r.asunto}</p>
+                      <span className="text-[11px] text-slate-500 font-medium">{r.categoria}</span>
                     </td>
 
-                    <td className="py-4 px-5 text-slate-400 text-[11px] whitespace-nowrap">
+                    <td className="py-4 px-5 text-slate-500 text-[11px] whitespace-nowrap font-medium">
                       {new Date(r.fecha_creacion).toLocaleDateString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </td>
 
@@ -283,7 +283,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                           e.stopPropagation();
                           setSelectedReport(r);
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 transition text-xs font-medium inline-flex items-center space-x-1"
+                        className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition text-xs font-semibold inline-flex items-center space-x-1"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         <span>Gestionar</span>
