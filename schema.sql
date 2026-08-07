@@ -40,11 +40,3 @@ CREATE POLICY "Permitir lectura publica" ON reportes
 -- Política 3: Permitir actualización
 CREATE POLICY "Permitir edicion" ON reportes
     FOR ALL USING (true);
-
--- ======================================================
--- PASO ADICIONAL EN SUPABASE STORAGE (GESTOR DE ARCHIVOS):
--- 1. Ve al menú "Storage" -> "New bucket"
--- 2. Nombra el bucket: evidencias-quejas
--- 3. Marca la casilla "Public bucket" (para permitir visualización pública de evidencias)
--- 4. ¡Listo! Los archivos se subirán de forma 100% anónima.
--- ======================================================

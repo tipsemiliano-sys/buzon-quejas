@@ -51,7 +51,7 @@ export async function uploadAnonymousFile(file: File): Promise<string> {
     const filePath = `adjuntos/${fileName}`;
 
     const { error } = await supabase.storage
-      .from('evidencias-quejas')
+      .from('evidencias_quejas')
       .upload(filePath, file, {
         cacheControl: '3600',
         upsert: false
@@ -63,7 +63,7 @@ export async function uploadAnonymousFile(file: File): Promise<string> {
     }
 
     const { data: publicUrlData } = supabase.storage
-      .from('evidencias-quejas')
+      .from('evidencias_quejas')
       .getPublicUrl(filePath);
 
     return publicUrlData.publicUrl;
@@ -214,8 +214,8 @@ export async function createReport(input: NewReportInput): Promise<Report> {
  * Actualizar el estado y respuesta del administrador
  */
 export async function updateReportStatus(
-  folio: string, 
-  nuevoEstado: ReportStatus, 
+  folio: string,
+  nuevoEstado: ReportStatus,
   respuestaAdmin?: string
 ): Promise<Report | null> {
   const cleanedFolio = folio.trim().toUpperCase();
