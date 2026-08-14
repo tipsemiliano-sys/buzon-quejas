@@ -1,6 +1,5 @@
 import { Report, NewReportInput, ReportStatus } from '../types';
 import { getSupabase, isSupabaseConfigured } from '../config/supabase';
-import { getNeonSql, isNeonConfigured } from '../config/neon';
 
 const LOCAL_STORAGE_KEY = 'buzon_quejas_reportes_v1';
 
@@ -14,9 +13,6 @@ export function generateFolio(): string {
   }
   return `QS-${year}-${randomPart}`;
 }
-
-// Inicialización vacía para evitar reportes precargados de demostración
-const INITIAL_DEMO_REPORTS: Report[] = [];
 
 function getLocalReports(): Report[] {
   try {
@@ -40,7 +36,7 @@ function saveLocalReports(reports: Report[]): void {
 }
 
 /**
- * Subida anónima de archivos a Supabase Storage (Bucket: 'evidencias-quejas')
+ * Subida anónima de archivos a Supabase Storage (Bucket: 'evidencias_quejas')
  */
 export async function uploadAnonymousFile(file: File): Promise<string> {
   const supabase = getSupabase();
@@ -86,9 +82,8 @@ export async function uploadMultipleAnonymousFiles(files: File[]): Promise<strin
   return Promise.all(uploadPromises);
 }
 
-
 /**
- * Obtener todos los reportes desde Supabase, Neon o LocalStorage
+ * Obtener todos los reportes desde Supabase (Requiere sesión de Administrador)
  */
 export async function getAllReports(): Promise<Report[]> {
   const supabase = getSupabase();
@@ -106,51 +101,41 @@ export async function getAllReports(): Promise<Report[]> {
     return (data || []) as Report[];
   }
 
-  const sql = getNeonSql();
-  if (sql && isNeonConfigured) {
-    try {
-      const rows = await sql`SELECT * FROM reportes ORDER BY fecha_creacion DESC`;
-      return rows as Report[];
-    } catch (error) {
-      console.error('Error en Neon SQL:', error);
-    }
-  }
-
   return getLocalReports();
 }
 
 /**
- * Obtener un reporte específico por su Folio
+ * Obtener un reporte específico por su Folio (Público y Seguro mediante RPC)
  */
 export async function getReportByFolio(folio: string): Promise<Report | null> {
   const cleanedFolio = folio.trim().toUpperCase();
 
   const supabase = getSupabase();
   if (supabase && isSupabaseConfigured) {
+    // 1. Intentar mediante la función RPC segura para usuarios públicos/anónimos
+    try {
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('consultar_reporte_por_folio', { p_folio: cleanedFolio });
+
+      if (!rpcError && rpcData && rpcData.length > 0) {
+        return rpcData[0] as Report;
+      }
+    } catch (rpcErr) {
+      console.warn('Aviso: RPC consultar_reporte_por_folio no disponible, probando consulta directa:', rpcErr);
+    }
+
+    // 2. Fallback de consulta directa (funciona para administradores autenticados)
     const { data, error } = await supabase
       .from('reportes')
       .select('*')
       .ilike('folio', cleanedFolio)
       .limit(1);
 
-    if (error) {
-      console.error('Error al buscar folio en Supabase:', error);
-      throw new Error(`Error en Supabase: ${error.message}`);
+    if (!error && data && data.length > 0) {
+      return data[0] as Report;
     }
 
-    return (data && data.length > 0) ? (data[0] as Report) : null;
-  }
-
-  const sql = getNeonSql();
-  if (sql && isNeonConfigured) {
-    try {
-      const rows = await sql`SELECT * FROM reportes WHERE UPPER(folio) = ${cleanedFolio} LIMIT 1`;
-      if (rows && rows.length > 0) {
-        return rows[0] as Report;
-      }
-    } catch (error) {
-      console.error('Error en Neon SQL:', error);
-    }
+    return null;
   }
 
   const localList = getLocalReports();
@@ -187,28 +172,11 @@ export async function createReport(input: NewReportInput): Promise<Report> {
 
     if (error) {
       console.error('Error al insertar reporte en Supabase:', error);
-      throw new Error(`Error en Supabase: ${error.message}. Verifica que hayas creado la tabla 'reportes' y habilitado sus políticas RLS.`);
+      throw new Error(`Error en Supabase: ${error.message}. Verifica las políticas RLS.`);
     }
 
     if (data && data.length > 0) {
       return data[0] as Report;
-    }
-  }
-
-  const sql = getNeonSql();
-  if (sql && isNeonConfigured) {
-    try {
-      const rows = await sql`
-        INSERT INTO reportes (folio, tipo, categoria, urgencia, asunto, descripcion, adjunto, estado, respuesta_admin, fecha_creacion, fecha_actualizacion)
-        VALUES (${newReport.folio}, ${newReport.tipo}, ${newReport.categoria}, ${newReport.urgencia}, ${newReport.asunto}, ${newReport.descripcion}, ${newReport.adjunto}, ${newReport.estado}, ${newReport.respuesta_admin}, ${newReport.fecha_creacion}, ${newReport.fecha_actualizacion})
-        RETURNING *
-      `;
-      if (rows && rows.length > 0) {
-        return rows[0] as Report;
-      }
-    } catch (error) {
-      console.error('Falló la inserción en Neon:', error);
-      throw error;
     }
   }
 
@@ -221,7 +189,7 @@ export async function createReport(input: NewReportInput): Promise<Report> {
 }
 
 /**
- * Actualizar el estado y respuesta del administrador
+ * Actualizar el estado y respuesta del administrador (Requiere sesión de Administrador)
  */
 export async function updateReportStatus(
   folio: string,
@@ -251,25 +219,6 @@ export async function updateReportStatus(
     return (data && data.length > 0) ? (data[0] as Report) : null;
   }
 
-  const sql = getNeonSql();
-  if (sql && isNeonConfigured) {
-    try {
-      const rows = await sql`
-        UPDATE reportes
-        SET estado = ${nuevoEstado},
-            respuesta_admin = ${respuestaAdmin ?? ''},
-            fecha_actualizacion = ${now}
-        WHERE UPPER(folio) = ${cleanedFolio}
-        RETURNING *
-      `;
-      if (rows && rows.length > 0) {
-        return rows[0] as Report;
-      }
-    } catch (error) {
-      console.error('Error al actualizar en Neon:', error);
-    }
-  }
-
   const localList = getLocalReports();
   const index = localList.findIndex(r => r.folio.toUpperCase() === cleanedFolio);
   if (index !== -1) {
@@ -286,7 +235,7 @@ export async function updateReportStatus(
 }
 
 /**
- * Eliminar un reporte
+ * Eliminar un reporte (Requiere sesión de Administrador)
  */
 export async function deleteReport(folio: string): Promise<boolean> {
   const cleanedFolio = folio.trim().toUpperCase();
@@ -306,18 +255,9 @@ export async function deleteReport(folio: string): Promise<boolean> {
     return true;
   }
 
-  const sql = getNeonSql();
-  if (sql && isNeonConfigured) {
-    try {
-      await sql`DELETE FROM reportes WHERE UPPER(folio) = ${cleanedFolio}`;
-      return true;
-    } catch (error) {
-      console.error('Error al eliminar en Neon:', error);
-    }
-  }
-
   const localList = getLocalReports();
   const filtered = localList.filter(r => r.folio.toUpperCase() !== cleanedFolio);
   saveLocalReports(filtered);
   return true;
 }
+

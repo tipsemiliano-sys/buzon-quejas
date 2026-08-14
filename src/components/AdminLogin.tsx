@@ -1,31 +1,56 @@
 import React, { useState } from 'react';
-import { Lock, ShieldCheck, Key, AlertCircle } from 'lucide-react';
+import { Lock, ShieldCheck, Key, Mail, AlertCircle } from 'lucide-react';
+import { getSupabase, isSupabaseConfigured } from '../config/supabase';
 
 interface AdminLoginProps {
   onLoginSuccess: () => void;
 }
 
-const DEFAULT_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
-
 export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
+  const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    setTimeout(() => {
-      if (password === DEFAULT_PASSWORD || password === 'admin') {
-        localStorage.setItem('admin_authenticated', 'true');
-        onLoginSuccess();
-      } else {
-        setError('Contraseña incorrecta. Por favor intenta de nuevo.');
-      }
+    const supabase = getSupabase();
+    if (!supabase || !isSupabaseConfigured) {
+      setError('La conexión con Supabase no está configurada. Verifica las variables de entorno.');
       setLoading(false);
-    }, 400);
+      return;
+    }
+
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password,
+      });
+
+      if (authError) {
+        if (authError.message.includes('Invalid login credentials')) {
+          setError('Correo electrónico o contraseña incorrectos.');
+        } else if (authError.message.includes('Email not confirmed')) {
+          setError('El correo electrónico no ha sido confirmado.');
+        } else {
+          setError(`Error de autenticación: ${authError.message}`);
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (data.session) {
+        onLoginSuccess();
+      }
+    } catch (err: any) {
+      console.error('Error al iniciar sesión:', err);
+      setError('Ocurrió un error inesperado al conectar con el servidor de autenticación.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -42,7 +67,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Acceso de Administración</h2>
           <p className="text-xs text-slate-500 font-medium mt-1">
-            Panel restringido para la gestión y seguimiento de quejas y sugerencias
+            Inicia sesión con tu cuenta de administrador de Supabase
           </p>
         </div>
 
@@ -56,7 +81,24 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
         <form onSubmit={handleLogin} className="space-y-4 text-left">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              Contraseña de Acceso
+              Correo Electrónico
+            </label>
+            <div className="relative">
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@tuempresa.com"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3.5 pl-11 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 transition"
+              />
+              <Mail className="w-5 h-5 text-slate-400 absolute left-3.5 top-3.5" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Contraseña
             </label>
             <div className="relative">
               <input
@@ -73,7 +115,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
 
           <button
             type="submit"
-            disabled={loading || !password}
+            disabled={loading || !email.trim() || !password}
             className="w-full py-3.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/20 transition disabled:opacity-50 flex items-center justify-center space-x-2"
           >
             {loading ? (
@@ -81,14 +123,14 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
             ) : (
               <>
                 <ShieldCheck className="w-5 h-5" />
-                <span>Ingresar al Panel</span>
+                <span>Ingresar de Forma Segura</span>
               </>
             )}
           </button>
         </form>
 
         <div className="text-[11px] text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-200">
-          🔑 <span className="font-semibold text-slate-700">Contraseña por defecto:</span> <code className="bg-white border border-slate-300 px-1.5 py-0.5 rounded text-indigo-700 font-bold">admin123</code> (puedes cambiarla en tus variables de entorno).
+          🔒 <span className="font-semibold text-slate-700">Seguridad:</span> Autenticación protegida por tokens criptográficos (JWT) mediante Supabase Auth.
         </div>
 
       </div>

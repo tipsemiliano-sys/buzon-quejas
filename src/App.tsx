@@ -1,10 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Header } from './components/Header';
 import { ComplaintForm } from './components/ComplaintForm';
 import { FolioLookup } from './components/FolioLookup';
-import { AdminLogin } from './components/AdminLogin';
-import { AdminDashboard } from './components/AdminDashboard';
 import { ShieldCheck, Database } from 'lucide-react';
+import { getSupabase } from './config/supabase';
+
+// Carga diferida (Code Splitting / Lazy Loading) para optimizar el bundle inicial
+const AdminLogin = lazy(() =>
+  import('./components/AdminLogin').then((module) => ({ default: module.AdminLogin }))
+);
+const AdminDashboard = lazy(() =>
+  import('./components/AdminDashboard').then((module) => ({ default: module.AdminDashboard }))
+);
 
 export function App() {
   const [activeTab, setActiveTab] = useState<'create' | 'lookup' | 'admin'>('create');
@@ -12,10 +19,22 @@ export function App() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(false);
 
   useEffect(() => {
-    const authSaved = localStorage.getItem('admin_authenticated');
-    if (authSaved === 'true') {
-      setIsAdminLoggedIn(true);
-    }
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    // 1. Verificar sesión activa inicial en Supabase Auth
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAdminLoggedIn(Boolean(session));
+    });
+
+    // 2. Escuchar cambios en el estado de autenticación (Login, Logout, Token Refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAdminLoggedIn(Boolean(session));
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleSuccessCreated = (folio: string) => {
@@ -27,8 +46,11 @@ export function App() {
     setActiveTab('lookup');
   };
 
-  const handleLogoutAdmin = () => {
-    localStorage.removeItem('admin_authenticated');
+  const handleLogoutAdmin = async () => {
+    const supabase = getSupabase();
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
     setIsAdminLoggedIn(false);
     setActiveTab('create');
   };
@@ -67,11 +89,20 @@ export function App() {
 
         {activeTab === 'admin' && (
           <div className="animate-fade-in">
-            {isAdminLoggedIn ? (
-              <AdminDashboard onLogout={handleLogoutAdmin} />
-            ) : (
-              <AdminLogin onLoginSuccess={() => setIsAdminLoggedIn(true)} />
-            )}
+            <Suspense
+              fallback={
+                <div className="flex flex-col items-center justify-center py-20 space-y-3">
+                  <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-xs text-slate-500 font-semibold">Cargando módulo de administración...</p>
+                </div>
+              }
+            >
+              {isAdminLoggedIn ? (
+                <AdminDashboard onLogout={handleLogoutAdmin} />
+              ) : (
+                <AdminLogin onLoginSuccess={() => setIsAdminLoggedIn(true)} />
+              )}
+            </Suspense>
           </div>
         )}
 
@@ -97,3 +128,4 @@ export function App() {
 }
 
 export default App;
+

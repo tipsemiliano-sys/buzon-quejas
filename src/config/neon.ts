@@ -1,21 +1,13 @@
-import { neon } from '@neondatabase/serverless';
+/**
+ * Conexión a Neon DB desactivada en frontend por seguridad.
+ * Las conexiones directas PostgreSQL no deben ejecutarse en el navegador
+ * para evitar la exposición de credenciales maestras.
+ * La aplicación utiliza Supabase con Row Level Security (RLS).
+ */
 
-// Obtener la URL de conexión desde variables de entorno VITE_NEON_DATABASE_URL
-const databaseUrl = import.meta.env.VITE_NEON_DATABASE_URL || '';
-
-export const isNeonConfigured = Boolean(
-  databaseUrl && 
-  (databaseUrl.startsWith('postgres://') || databaseUrl.startsWith('postgresql://') || databaseUrl.startsWith('https://'))
-);
+export const isNeonConfigured = false;
 
 export function getNeonSql() {
-  if (!isNeonConfigured) {
-    return null;
-  }
-  try {
-    return neon(databaseUrl);
-  } catch (error) {
-    console.error('Error al inicializar la conexión con Neon:', error);
-    return null;
-  }
+  return null;
 }
+

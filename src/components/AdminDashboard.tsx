@@ -57,21 +57,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     return matchesSearch && matchesTipo && matchesUrgencia && matchesEstado;
   });
 
+  // Sanitizar celdas para prevenir CSV Formula Injection
+  const sanitizeCsvCell = (val: string | undefined): string => {
+    if (!val) return '""';
+    let clean = val.replace(/"/g, '""');
+    // Prevenir ejecución de fórmulas maliciosas en Excel
+    if (/^[=+\-@\t\r]/.test(clean)) {
+      clean = `'${clean}`;
+    }
+    return `"${clean}"`;
+  };
+
   // Exportar a CSV
   const handleExportCSV = () => {
     if (filteredReports.length === 0) return;
 
     const headers = ['Folio', 'Tipo', 'Categoria', 'Urgencia', 'Asunto', 'Estado', 'Fecha Creacion', 'Adjunto', 'Respuesta Admin'];
     const rows = filteredReports.map((r) => [
-      `"${r.folio}"`,
-      `"${r.tipo}"`,
-      `"${r.categoria}"`,
-      `"${r.urgencia}"`,
-      `"${r.asunto.replace(/"/g, '""')}"`,
-      `"${r.estado}"`,
-      `"${new Date(r.fecha_creacion).toLocaleString('es-MX')}"`,
-      `"${r.adjunto || ''}"`,
-      `"${(r.respuesta_admin || '').replace(/"/g, '""')}"`
+      sanitizeCsvCell(r.folio),
+      sanitizeCsvCell(r.tipo),
+      sanitizeCsvCell(r.categoria),
+      sanitizeCsvCell(r.urgencia),
+      sanitizeCsvCell(r.asunto),
+      sanitizeCsvCell(r.estado),
+      sanitizeCsvCell(new Date(r.fecha_creacion).toLocaleString('es-MX')),
+      sanitizeCsvCell(r.adjunto || ''),
+      sanitizeCsvCell(r.respuesta_admin || '')
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
