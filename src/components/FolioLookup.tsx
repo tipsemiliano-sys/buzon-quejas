@@ -173,18 +173,29 @@ export const FolioLookup: React.FC<FolioLookupProps> = ({ initialFolio = '' }) =
               </div>
 
               {/* Evidencia si existe */}
-              {report.adjunto && (
-                <div className="space-y-1">
-                  <span className="text-xs font-semibold text-slate-500">Enlace de Evidencia:</span>
-                  <a
-                    href={report.adjunto}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center space-x-2 text-indigo-600 hover:text-indigo-800 text-xs font-semibold underline"
-                  >
-                    <span>Ver archivo adjunto</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+              {report.adjunto && report.adjunto.trim() !== '' && (
+                <div className="space-y-2 pt-1">
+                  <span className="text-xs font-semibold text-slate-500 block">
+                    {report.adjunto.includes(',') ? 'Archivos / Evidencias Adjuntas:' : 'Archivo / Evidencia Adjunta:'}
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {report.adjunto.split(',').map((url, idx) => {
+                      const trimmedUrl = url.trim();
+                      if (!trimmedUrl) return null;
+                      return (
+                        <a
+                          key={idx}
+                          href={trimmedUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center space-x-2 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl text-xs font-semibold transition"
+                        >
+                          <span>Ver Evidencia #{idx + 1}</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 

@@ -90,20 +90,33 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
           {/* Adjunto / Evidencia si existe */}
           {report.adjunto && report.adjunto.trim() !== '' && (
-            <div className="bg-indigo-50/80 p-4 rounded-2xl border border-indigo-200 flex items-center justify-between text-xs">
+            <div className="bg-indigo-50/80 p-4 rounded-2xl border border-indigo-200 space-y-2 text-xs">
               <div className="flex items-center space-x-2.5 text-indigo-950 font-bold">
                 <Paperclip className="w-4 h-4 text-indigo-600" />
-                <span>Documento / Evidencia Adjunta</span>
+                <span>
+                  {report.adjunto.includes(',') ? 'Documentos / Evidencias Adjuntas' : 'Documento / Evidencia Adjunta'}
+                </span>
               </div>
-              <a
-                href={report.adjunto}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center space-x-1.5 shadow-xs transition"
-              >
-                <span>Abrir / Descargar Evidencia</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+              <div className="flex flex-col gap-2 pt-1">
+                {report.adjunto.split(',').map((url, idx) => {
+                  const trimmedUrl = url.trim();
+                  if (!trimmedUrl) return null;
+                  return (
+                    <a
+                      key={idx}
+                      href={trimmedUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 rounded-xl bg-white border border-indigo-200 hover:bg-indigo-600 hover:text-white text-indigo-700 font-bold flex items-center justify-between shadow-xs transition group"
+                    >
+                      <span className="truncate max-w-sm">
+                        Evidencia #{idx + 1} ({trimmedUrl.startsWith('http') ? trimmedUrl.split('/').pop()?.slice(0, 30) : 'Ver archivo'})
+                      </span>
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0 ml-2 group-hover:text-white" />
+                    </a>
+                  );
+                })}
+              </div>
             </div>
           )}
 

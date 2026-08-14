@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Send, ShieldAlert, CheckCircle2, Copy, AlertTriangle, Lightbulb, Lock, Info, Building2, HelpCircle, UploadCloud, FileText, X, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { NewReportInput, Report, UrgencyLevel } from '../types';
-import { createReport, uploadAnonymousFile } from '../services/storageService';
+import { createReport, uploadAnonymousFile, uploadMultipleAnonymousFiles } from '../services/storageService';
 import { sendAdminNotificationEmail } from '../services/emailService';
 
 interface ComplaintFormProps {
@@ -80,7 +80,7 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
   const [sugerenciaRecursos, setSugerenciaRecursos] = useState<string>('');
 
   // Almacenamiento de archivos adjuntos
-  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [uploadingFile, setUploadingFile] = useState<boolean>(false);
   const [adjuntoUrl, setAdjuntoUrl] = useState<string>('');
   const [showUrlInput, setShowUrlInput] = useState<boolean>(false);
@@ -98,31 +98,25 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
   const isSugerenciaValid = sugerenciaAspecto.trim() !== '' && sugerenciaPropuesta.trim() !== '' && sugerenciaBeneficios.trim() !== '';
   const isFormValid = tipoRegistro === 'queja' ? isQuejaValid : isSugerenciaValid;
 
-  // Manejo de archivo seleccionado
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 10 * 1024 * 1024) {
-        alert('El archivo seleccionado supera el límite de 10 MB. Por favor elige uno más pequeño.');
-        return;
+  // Manejo de varios archivos seleccionados
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const selectedFiles = Array.from(e.target.files);
+      const validFiles: File[] = [];
+      for (const file of selectedFiles) {
+        if (file.size > 10 * 1024 * 1024) {
+          alert(`El archivo "${file.name}" supera el límite de 10 MB. Se omitió de la lista.`);
+        } else {
+          validFiles.push(file);
+        }
       }
-      setAttachedFile(file);
-      setUploadingFile(true);
-      try {
-        const uploadedUrl = await uploadAnonymousFile(file);
-        setAdjuntoUrl(uploadedUrl);
-      } catch (err) {
-        console.error('Error al subir archivo:', err);
-      } finally {
-        setUploadingFile(false);
-      }
+      setAttachedFiles(prev => [...prev, ...validFiles]);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const handleRemoveFile = () => {
-    setAttachedFile(null);
-    setAdjuntoUrl('');
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  const handleRemoveFile = (indexToRemove: number) => {
+    setAttachedFiles(prev => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -134,17 +128,21 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
     setLoading(true);
 
     try {
-      let finalAdjuntoUrl = adjuntoUrl.trim();
+      const finalUrls: string[] = [];
 
-      // Garantizar que si se seleccionó un archivo pero aún no se subió, se suba antes de enviar
-      if (attachedFile && !finalAdjuntoUrl) {
+      if (adjuntoUrl.trim()) {
+        finalUrls.push(adjuntoUrl.trim());
+      }
+
+      // Subir todos los archivos seleccionados a Supabase Storage
+      if (attachedFiles.length > 0) {
         setUploadingFile(true);
         try {
-          finalAdjuntoUrl = await uploadAnonymousFile(attachedFile);
-          setAdjuntoUrl(finalAdjuntoUrl);
+          const uploadedUrls = await uploadMultipleAnonymousFiles(attachedFiles);
+          finalUrls.push(...uploadedUrls);
         } catch (err: any) {
-          console.error('Error al subir evidencia:', err);
-          alert(`⚠️ No se pudo subir el archivo adjunto a Supabase Storage: ${err?.message || String(err)}`);
+          console.error('Error al subir evidencias:', err);
+          alert(`⚠️ No se pudieron subir algunos archivos a Supabase Storage: ${err?.message || String(err)}`);
           setLoading(false);
           setUploadingFile(false);
           return;
@@ -152,6 +150,8 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
           setUploadingFile(false);
         }
       }
+
+      const combinedAdjuntoUrl = finalUrls.join(', ');
 
       let inputData: NewReportInput;
 
@@ -173,7 +173,7 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
           urgencia: urgencyLevel,
           asunto: `Queja: ${quejaCategoria.slice(0, 60)}`,
           descripcion: fullDesc,
-          adjunto: finalAdjuntoUrl || undefined,
+          adjunto: combinedAdjuntoUrl || undefined,
         };
       } else {
         let fullDesc = `Aspecto a Mejorar: ${sugerenciaAspecto}\n\n`;
@@ -189,7 +189,7 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
           urgencia: 'media',
           asunto: `Sugerencia: ${sugerenciaAspecto.slice(0, 60)}`,
           descripcion: fullDesc,
-          adjunto: finalAdjuntoUrl || undefined,
+          adjunto: combinedAdjuntoUrl || undefined,
         };
       }
 
@@ -287,7 +287,7 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
                 setSugerenciaPropuesta('');
                 setSugerenciaBeneficios('');
                 setSugerenciaRecursos('');
-                setAttachedFile(null);
+                setAttachedFiles([]);
                 setAdjuntoUrl('');
                 setTouched(false);
               }}
@@ -647,63 +647,67 @@ export const ComplaintForm: React.FC<ComplaintFormProps> = ({ onSuccessCreated, 
           </div>
 
           {!showUrlInput ? (
-            <div>
-              {!attachedFile ? (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-slate-300 hover:border-indigo-500 bg-slate-50 hover:bg-indigo-50/50 rounded-2xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center space-y-2 group"
-                >
-                  <div className="p-3 bg-white text-indigo-600 rounded-2xl shadow-xs group-hover:scale-110 transition">
-                    <UploadCloud className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-800">
-                      Haz clic para seleccionar o arrastra un archivo aquí
-                    </p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Soporta documentos PDF, Word (.doc, .docx) e Imágenes (PNG, JPG) de hasta 10 MB.
-                    </p>
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,.pdf,.doc,.docx"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
+            <div className="space-y-3">
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-300 hover:border-indigo-500 bg-slate-50 hover:bg-indigo-50/50 rounded-2xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center space-y-2 group"
+              >
+                <div className="p-3 bg-white text-indigo-600 rounded-2xl shadow-xs group-hover:scale-110 transition">
+                  <UploadCloud className="w-6 h-6" />
                 </div>
-              ) : (
-                <div className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-4 flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2.5 bg-indigo-600 text-white rounded-xl">
-                      {attachedFile.type.startsWith('image/') ? <ImageIcon className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900 truncate max-w-xs">{attachedFile.name}</p>
-                      <p className="text-[11px] text-slate-500 font-medium">
-                        {(attachedFile.size / (1024 * 1024)).toFixed(2)} MB {uploadingFile && '• Subiendo a Supabase Storage...'}
-                      </p>
-                    </div>
-                  </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800">
+                    Haz clic para seleccionar uno o varios archivos (o arrástralos aquí)
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Soporta documentos PDF, Word (.doc, .docx) e Imágenes (PNG, JPG) de hasta 10 MB cada uno.
+                  </p>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+              </div>
 
-                  <div className="flex items-center space-x-2">
-                    {uploadingFile ? (
-                      <span className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
-                    ) : (
-                      <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full flex items-center space-x-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Adjuntado</span>
+              {attachedFiles.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                    <span>Archivos seleccionados ({attachedFiles.length}):</span>
+                    {uploadingFile && (
+                      <span className="text-indigo-600 font-semibold text-[11px] animate-pulse">
+                        Subiendo a Supabase Storage...
                       </span>
                     )}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {attachedFiles.map((file, index) => (
+                      <div key={`${file.name}-${index}`} className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-3 flex items-center justify-between">
+                        <div className="flex items-center space-x-2.5 overflow-hidden">
+                          <div className="p-2 bg-indigo-600 text-white rounded-xl shrink-0">
+                            {file.type.startsWith('image/') ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 truncate max-w-[140px]">{file.name}</p>
+                            <p className="text-[10px] text-slate-500 font-medium">
+                              {(file.size / (1024 * 1024)).toFixed(2)} MB
+                            </p>
+                          </div>
+                        </div>
 
-                    <button
-                      type="button"
-                      onClick={handleRemoveFile}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
-                      title="Quitar archivo"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFile(index)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition shrink-0 ml-2"
+                          title="Quitar archivo"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

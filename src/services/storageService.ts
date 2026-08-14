@@ -78,6 +78,16 @@ export async function uploadAnonymousFile(file: File): Promise<string> {
 }
 
 /**
+ * Subida múltiple de archivos a Supabase Storage
+ */
+export async function uploadMultipleAnonymousFiles(files: File[]): Promise<string[]> {
+  if (!files || files.length === 0) return [];
+  const uploadPromises = files.map(file => uploadAnonymousFile(file));
+  return Promise.all(uploadPromises);
+}
+
+
+/**
  * Obtener todos los reportes desde Supabase, Neon o LocalStorage
  */
 export async function getAllReports(): Promise<Report[]> {
