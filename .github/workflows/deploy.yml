@@ -37,6 +37,9 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_ADMIN_PASSWORD: ${{ secrets.VITE_ADMIN_PASSWORD }}
+          VITE_WEB3FORMS_ACCESS_KEY: ${{ secrets.VITE_WEB3FORMS_ACCESS_KEY }}
+          VITE_ADMIN_NOTIFICATION_EMAIL: ${{ secrets.VITE_ADMIN_NOTIFICATION_EMAIL }}
         run: npm run build
 
       - name: Cargar artefacto de Pages
