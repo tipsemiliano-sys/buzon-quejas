@@ -1,7 +1,4 @@
--- ======================================================
--- SCRIPT DE CREACIÓN DE TABLA Y ALMACENAMIENTO PARA SUPABASE
--- Copia y pega este contenido en el SQL Editor de Supabase (https://app.supabase.com)
--- ======================================================
+
 
 -- 1. Crear tabla principal de reportes
 CREATE TABLE IF NOT EXISTS reportes (
