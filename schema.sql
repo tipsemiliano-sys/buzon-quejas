@@ -26,17 +26,48 @@ ALTER TABLE reportes ADD COLUMN IF NOT EXISTS adjunto TEXT;
 CREATE INDEX IF NOT EXISTS idx_reportes_folio ON reportes(folio);
 CREATE INDEX IF NOT EXISTS idx_reportes_estado ON reportes(estado);
 
--- 3. Habilitar Seguridad a Nivel de Fila (RLS)
+-- 3. Habilitar Seguridad a Nivel de Fila (RLS) en la tabla reportes
 ALTER TABLE reportes ENABLE ROW LEVEL SECURITY;
 
 -- Política 1: Permitir que cualquier usuario (anónimo) envíe reportes
+DROP POLICY IF EXISTS "Permitir insercion anonima" ON reportes;
 CREATE POLICY "Permitir insercion anonima" ON reportes
     FOR INSERT WITH CHECK (true);
 
 -- Política 2: Permitir consulta pública por Folio
+DROP POLICY IF EXISTS "Permitir lectura publica" ON reportes;
 CREATE POLICY "Permitir lectura publica" ON reportes
     FOR SELECT USING (true);
 
 -- Política 3: Permitir actualización
+DROP POLICY IF EXISTS "Permitir edicion" ON reportes;
 CREATE POLICY "Permitir edicion" ON reportes
     FOR ALL USING (true);
+
+-- ======================================================
+-- 4. CONFIGURACIÓN DE SUPABASE STORAGE (BUCKET Y POLÍTICAS RLS)
+-- ======================================================
+
+-- Crear el bucket 'evidencias_quejas' como público si no existe
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('evidencias_quejas', 'evidencias_quejas', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Política RLS 1: Permitir subir archivos (INSERT) públicamente al bucket 'evidencias_quejas'
+DROP POLICY IF EXISTS "Permitir subida publica en evidencias_quejas" ON storage.objects;
+CREATE POLICY "Permitir subida publica en evidencias_quejas" ON storage.objects
+    FOR INSERT
+    WITH CHECK (bucket_id = 'evidencias_quejas');
+
+-- Política RLS 2: Permitir ver/descargar archivos (SELECT) públicamente del bucket 'evidencias_quejas'
+DROP POLICY IF EXISTS "Permitir lectura publica en evidencias_quejas" ON storage.objects;
+CREATE POLICY "Permitir lectura publica en evidencias_quejas" ON storage.objects
+    FOR SELECT
+    USING (bucket_id = 'evidencias_quejas');
+
+-- Política RLS 3: Permitir borrar archivos (DELETE) públicamente del bucket 'evidencias_quejas'
+DROP POLICY IF EXISTS "Permitir eliminacion publica en evidencias_quejas" ON storage.objects;
+CREATE POLICY "Permitir eliminacion publica en evidencias_quejas" ON storage.objects
+    FOR DELETE
+    USING (bucket_id = 'evidencias_quejas');
+
